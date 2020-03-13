@@ -32,11 +32,33 @@ public class MainController {
     }
 
     @GetMapping("/main")
-    public String main(@RequestParam(required = false, defaultValue = "") String filter, Model model) {
-        Iterable<Message> messages = filter != null && !filter.isEmpty() ? messageRepo.findByTag(filter) : messageRepo.findAll();
-        model.addAttribute("messages", messages);
-        model.addAttribute("filter", filter);
+    public String main(@RequestParam(required = false, defaultValue = "") String filterText,
+                       @RequestParam(required = false, defaultValue = "") String filterTag,
+                       Model model) {
+        model.addAttribute("messages", getMessages(filterText, filterTag));
+        model.addAttribute("filterText", filterText);
+        model.addAttribute("filterTag", filterTag);
         return "main";
+    }
+
+    private Iterable<Message> getMessages(String filterText, String filterTag) {
+        Iterable<Message> messages;
+        boolean isEmptyFilterText = isEmpty(filterText),
+                isEmptyFilterTag = isEmpty(filterTag);
+        if (isEmptyFilterText && isEmptyFilterTag) {
+            messages = messageRepo.findAll();
+        } else if (!isEmptyFilterText && isEmptyFilterTag) {
+            messages = messageRepo.findByTextOrderById(filterText);
+        } else if (isEmptyFilterText) {
+            messages = messageRepo.findByTagOrderById(filterTag);
+        } else {
+            messages = messageRepo.findByTextAndTagOrderById(filterText, filterTag);
+        }
+        return messages;
+    }
+
+    private boolean isEmpty(String value) {
+        return value == null || value.isEmpty();
     }
 
     @PostMapping("/main")
@@ -46,6 +68,7 @@ public class MainController {
             @RequestParam String tag,
             Map<String, Object> model,
             @RequestParam("file") MultipartFile file) throws IOException {
+
         Message message = new Message(text, tag, user);
 
         if (file != null && !file.getOriginalFilename().isEmpty()) {
